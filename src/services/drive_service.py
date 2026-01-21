@@ -1,3 +1,4 @@
+import json
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -29,8 +30,22 @@ class DriveService:
         
         # Load existing token
         if os.path.exists(token_path):
-            with open(token_path, 'rb') as token:
-                creds = pickle.load(token)
+            try:
+                # Try loading as JSON (modern format)
+                with open(token_path, 'r') as token:
+                    data = json.load(token)
+                    creds = Credentials.from_authorized_user_info(data, self.SCOPES)
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                # Fallback to pickle (legacy format)
+                try:
+                    with open(token_path, 'rb') as token:
+                        creds = pickle.load(token)
+                except Exception:
+                    logger.warning("Failed to load token as JSON or Pickle")
+                    creds = None
+            except Exception as e:
+                logger.warning(f"Error loading token: {e}")
+                creds = None
         
         # Refresh or get new credentials
         if not creds or not creds.valid:
@@ -45,9 +60,9 @@ class DriveService:
                 flow = InstalledAppFlow.from_client_secrets_file(creds_path, self.SCOPES)
                 creds = flow.run_local_server(port=0)
             
-            # Save credentials
-            with open(token_path, 'wb') as token:
-                pickle.dump(creds, token)
+            # Save credentials as JSON (more portable)
+            with open(token_path, 'w') as token:
+                token.write(creds.to_json())
         
         return creds
     
