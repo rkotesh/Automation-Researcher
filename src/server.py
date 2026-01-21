@@ -23,8 +23,13 @@ class ResearchRequest(BaseModel):
     topic: str
 
 @app.get("/")
+@app.head("/")
 def read_root():
     return FileResponse('src/static/index.html')
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
 
 @app.post("/research")
 def trigger_research(request: ResearchRequest):
