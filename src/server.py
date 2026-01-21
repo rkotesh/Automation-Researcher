@@ -1,4 +1,6 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from src.main import run_research
 from src.utils.logger import get_logger
@@ -14,12 +16,15 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Mount static directory
+app.mount("/static", StaticFiles(directory="src/static"), name="static")
+
 class ResearchRequest(BaseModel):
     topic: str
 
 @app.get("/")
 def read_root():
-    return {"status": "online", "message": "Automated Researcher API is Ready"}
+    return FileResponse('src/static/index.html')
 
 @app.post("/research")
 def trigger_research(request: ResearchRequest):

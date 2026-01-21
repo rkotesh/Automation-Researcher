@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automated Research Agent</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-current: #1d4ed8;
+            --background: #0f172a;
+            --surface: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 700px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+
+        .input-group {
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 1rem 1.25rem;
+            background: #020617;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: white;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+        }
+
+        button {
+            width: 100%;
+            padding: 1rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        button:hover {
+            background: var(--primary-current);
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-area {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+            display: none;
+        }
+
+        .result-area.active {
+            display: block;
+            animation: slideUp 0.4s ease-out;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            background: rgba(16, 185, 129, 0.1);
+            color: #34d399;
+            margin-bottom: 1rem;
+        }
+
+        .briefing-card {
+            background: #020617;
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .link-btn {
+            display: inline-flex;
+            align-items: center;
+            margin-top: 1rem;
+            color: #60a5fa;
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .link-btn:hover {
+            text-decoration: underline;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            display: none;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Error state */
+        .error-msg {
+            color: #f87171;
+            margin-top: 1rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Automated Researcher</h1>
+    <p class="subtitle">Enter a topic and let the AI agent browse the web, scrape key insights, summarize findings, and generate a professional briefing document for you.</p>
+
+    <div class="input-group">
+        <input type="text" id="topicInput" placeholder="e.g. Future of Solid State Batteries..." autocomplete="off">
+    </div>
+
+    <button id="searchBtn">
+        <span class="spinner" id="btnSpinner"></span>
+        <span id="btnText">Start Research</span>
+    </button>
+    
+    <p class="error-msg" id="errorMsg"></p>
+
+    <div class="result-area" id="resultArea">
+        <div class="status-badge">Research Completed</div>
+        <div class="briefing-card">
+            <h3 style="margin-bottom: 0.5rem; color: white;">Research Summary</h3>
+            <p id="briefingPreview" style="color: #94a3b8; font-size: 0.95rem; line-height: 1.6;"></p>
+            <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                 <a href="#" id="docLink" target="_blank" class="link-btn">
+                     📄 View Full Information on Google Drive &rarr;
+                 </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const searchBtn = document.getElementById('searchBtn');
+    const topicInput = document.getElementById('topicInput');
+    const resultArea = document.getElementById('resultArea');
+    const btnSpinner = document.getElementById('btnSpinner');
+    const btnText = document.getElementById('btnText');
+    const briefingPreview = document.getElementById('briefingPreview');
+    const docLink = document.getElementById('docLink');
+    const errorMsg = document.getElementById('errorMsg');
+
+    searchBtn.addEventListener('click', async () => {
+        const topic = topicInput.value.trim();
+        if (!topic) return;
+
+        // Reset UI
+        setLoading(true);
+        resultArea.classList.remove('active');
+        errorMsg.style.display = 'none';
+
+        try {
+            const response = await fetch('/research', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ topic: topic })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // Success
+                briefingPreview.textContent = data.briefing_preview;
+                docLink.href = data.document_url;
+                resultArea.classList.add('active');
+            } else {
+                // Error from API
+                throw new Error(data.detail || 'Research failed');
+            }
+
+        } catch (error) {
+            console.error(error);
+            errorMsg.textContent = "Error: " + error.message;
+            errorMsg.style.display = 'block';
+        } finally {
+            setLoading(false);
+        }
+    });
+
+    function setLoading(isLoading) {
+        searchBtn.disabled = isLoading;
+        if (isLoading) {
+            btnSpinner.style.display = 'block';
+            btnText.textContent = 'Researching... (this takes ~30s)';
+        } else {
+            btnSpinner.style.display = 'none';
+            btnText.textContent = 'Start Research';
+        }
+    }
+</script>
+
+</body>
+</html>
