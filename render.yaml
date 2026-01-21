@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: automated-researcher
+    env: docker
+    plan: free
+    buildCommand: docker build -t automated-researcher .
+    startCommand: uvicorn src.server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: SERPER_API_KEY
+        sync: false
+      - key: LLM_PROVIDER
+        value: openai
+      - key: LLM_MODEL
+        value: gpt-4-turbo-preview
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GOOGLE_DRIVE_FOLDER_ID
+        sync: false
+    disk:
+      name: google-creds
+      mountPath: /app/config/creds
+      sizeGB: 1
