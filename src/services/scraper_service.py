@@ -1,6 +1,5 @@
 import requests
 from bs4 import BeautifulSoup
-from newspaper import Article
 from typing import List
 from config.settings import settings
 from src.agents.state import SearchResult, ScrapedContent
@@ -13,32 +12,54 @@ class ScraperService:
     def __init__(self):
         self.timeout = settings.scraping_timeout
         self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
     
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     def scrape_url(self, url: str, title: str) -> ScrapedContent:
         """
-        Scrape content from a single URL using newspaper3k
+        Scrape content from a single URL using BeautifulSoup
         """
         try:
             logger.info(f"Scraping: {url}")
             
-            article = Article(url)
-            article.download()
-            article.parse()
+            response = requests.get(url, headers=self.headers, timeout=self.timeout)
+            response.raise_for_status()
             
-            # Fallback to BeautifulSoup if newspaper3k fails
-            if not article.text or len(article.text) < 100:
-                logger.warning(f"Newspaper3k failed for {url}, trying BeautifulSoup")
-                return self._scrape_with_bs4(url, title)
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # Remove script and style elements
+            for script in soup(["script", "style", "nav", "footer", "header", "aside", "iframe", "noscript"]):
+                script.decompose()
+            
+            # Get text
+            # Prefer article body if possible
+            article_body = soup.find('article')
+            if article_body:
+                text = article_body.get_text(separator='\n\n')
+            else:
+                # Fallback to body
+                text = soup.body.get_text(separator='\n\n') if soup.body else ""
+            
+            # Clean text
+            lines = (line.strip() for line in text.splitlines())
+            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+            text_content = '\n\n'.join(chunk for chunk in chunks if chunk)
+            
+            if not text_content or len(text_content) < 100:
+                logger.warning(f"Insufficient content for {url}")
+                return ScrapedContent(
+                    url=url,
+                    title=title,
+                    content="",
+                    success=False,
+                    error_message="Insufficient content extracted"
+                )
             
             return ScrapedContent(
                 url=url,
-                title=article.title or title,
-                content=article.text,
-                author=article.authors[0] if article.authors else None,
-                publish_date=str(article.publish_date) if article.publish_date else None,
+                title=title,
+                content=text_content[:15000], # Limit content size
                 success=True
             )
             
@@ -51,30 +72,6 @@ class ScraperService:
                 success=False,
                 error_message=str(e)
             )
-    
-    def _scrape_with_bs4(self, url: str, title: str) -> ScrapedContent:
-        """
-        Fallback scraper using BeautifulSoup
-        """
-        response = requests.get(url, headers=self.headers, timeout=self.timeout)
-        response.raise_for_status()
-        
-        soup = BeautifulSoup(response.content, 'lxml')
-        
-        # Remove script and style elements
-        for script in soup(["script", "style", "nav", "footer", "header"]):
-            script.decompose()
-        
-        # Get text from paragraphs
-        paragraphs = soup.find_all('p')
-        content = '\n\n'.join([p.get_text().strip() for p in paragraphs if p.get_text().strip()])
-        
-        return ScrapedContent(
-            url=url,
-            title=title,
-            content=content,
-            success=True
-        )
     
     def scrape_multiple(self, search_results: List[SearchResult]) -> List[ScrapedContent]:
         """
